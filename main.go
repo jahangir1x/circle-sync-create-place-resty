@@ -6,18 +6,19 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/gocarina/gocsv"
 	"os"
+	"resty_experiments/serializer"
 	"strconv"
 	"strings"
 )
 
 func login() (string, error) {
-	payload := LoginReq{
+	payload := serializer.LoginReq{
 		Email:     "jahangir64r@gmail.com",
 		Password:  "Passw0rd",
 		LongLived: true,
 	}
 
-	var loginResp LoginResp
+	var loginResp serializer.LoginResp
 	response, err := resty.New().R().
 		SetHeader("Content-Type", "application/json").
 		SetBody(&payload).
@@ -31,13 +32,13 @@ func login() (string, error) {
 	return loginResp.AccessToken, nil
 }
 
-func parseCsvToStruct(csvPath string) ([]CsvData, error) {
+func parseCsvToStruct(csvPath string) ([]serializer.CsvData, error) {
 	csvFile, err := os.Open(csvPath)
 	if err != nil {
 		return nil, err
 	}
 
-	var csvParsedData []CsvData
+	var csvParsedData []serializer.CsvData
 	if err := gocsv.UnmarshalFile(csvFile, &csvParsedData); err != nil {
 		return nil, err
 	}
@@ -45,7 +46,7 @@ func parseCsvToStruct(csvPath string) ([]CsvData, error) {
 }
 
 func createPlace(accessToken string, placeName string, latitude float64, longitude float64, radius float64) error {
-	payload := CreatePlaceReq{
+	payload := serializer.CreatePlaceReq{
 		Name:      placeName,
 		Latitude:  latitude,
 		Longitude: longitude,
@@ -65,7 +66,7 @@ func createPlace(accessToken string, placeName string, latitude float64, longitu
 	return nil
 }
 
-func createMultiplePlaces(accessToken string, places []CsvData) error {
+func createMultiplePlaces(accessToken string, places []serializer.CsvData) error {
 	for _, place := range places {
 		latitude, err := strconv.ParseFloat(strings.Split(place.Coordinates, ", ")[0], 64)
 		if err != nil {
@@ -88,13 +89,17 @@ func parseCsvPathFromCmd() (string, error) {
 	flag.Parse()
 	arguments := flag.Args()
 	if len(arguments) != 1 {
-		return "", fmt.Errorf("Usage: go run . <csv_file_path>")
+		return "", fmt.Errorf("Usage: go run main.go <csv_file_path>")
 	}
 	return arguments[0], nil
 }
 
 func main() {
 	csvFilePath, err := parseCsvPathFromCmd()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	accessToken, err := login()
 	if err != nil {

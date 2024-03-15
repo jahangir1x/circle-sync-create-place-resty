@@ -1,4 +1,4 @@
-package main
+package serializer
 
 type LoginReq struct {
 	Email     string `json:"email"`
