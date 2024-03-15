@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-func login() (string, error) {
+func login(client *resty.Client) (string, error) {
 	payload := serializer.LoginReq{
 		Email:     "jahangir64r@gmail.com",
 		Password:  "Passw0rd",
@@ -19,7 +19,7 @@ func login() (string, error) {
 	}
 
 	var loginResp serializer.LoginResp
-	response, err := resty.New().R().
+	response, err := client.R().
 		SetHeader("Content-Type", "application/json").
 		SetBody(&payload).
 		SetResult(&loginResp).
@@ -45,7 +45,7 @@ func parseCsvToStruct(csvPath string) ([]serializer.CsvData, error) {
 	return csvParsedData, nil
 }
 
-func createPlace(accessToken string, placeName string, latitude float64, longitude float64, radius float64) error {
+func createPlace(client *resty.Client, accessToken string, placeName string, latitude float64, longitude float64, radius float64) error {
 	payload := serializer.CreatePlaceReq{
 		Name:      placeName,
 		Latitude:  latitude,
@@ -53,7 +53,7 @@ func createPlace(accessToken string, placeName string, latitude float64, longitu
 		Radius:    radius,
 	}
 
-	response, err := resty.New().R().
+	response, err := client.R().
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Authorization", "Bearer "+accessToken).
 		SetBody(&payload).
@@ -66,7 +66,7 @@ func createPlace(accessToken string, placeName string, latitude float64, longitu
 	return nil
 }
 
-func createMultiplePlaces(accessToken string, places []serializer.CsvData) error {
+func createMultiplePlaces(client *resty.Client, accessToken string, places []serializer.CsvData) error {
 	for _, place := range places {
 		latitude, err := strconv.ParseFloat(strings.Split(place.Coordinates, ", ")[0], 64)
 		if err != nil {
@@ -77,7 +77,7 @@ func createMultiplePlaces(accessToken string, places []serializer.CsvData) error
 			return err
 		}
 
-		err = createPlace(accessToken, place.LocationName, latitude, longitude, place.Radius)
+		err = createPlace(client, accessToken, place.LocationName, latitude, longitude, place.Radius)
 		if err != nil {
 			return err
 		}
@@ -101,7 +101,9 @@ func main() {
 		return
 	}
 
-	accessToken, err := login()
+	client := resty.New()
+
+	accessToken, err := login(client)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -115,7 +117,7 @@ func main() {
 		return
 	}
 
-	err = createMultiplePlaces(accessToken, csvData)
+	err = createMultiplePlaces(client, accessToken, csvData)
 	if err != nil {
 		fmt.Println(err)
 		return
