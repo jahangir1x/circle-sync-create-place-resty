@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/go-resty/resty/v2"
 	"github.com/gocarina/gocsv"
@@ -90,13 +91,23 @@ func createPlace(accessToken string, placeName string, latitude float64, longitu
 }
 
 func main() {
+	flag.Parse()
+	arguments := flag.Args()
+	if len(arguments) != 1 {
+		fmt.Println("Usage: go run main.go <csv_file_path>")
+		return
+	}
+
 	accessToken, err := login()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+	fmt.Println("Logged in successfully")
 
-	csvParsed, err := parseCsvToStruct("places.csv")
+	csvFilePath := arguments[0]
+	fmt.Println("Processing file: ", csvFilePath)
+	csvParsed, err := parseCsvToStruct(csvFilePath)
 	if err != nil {
 		fmt.Println(err)
 		return
