@@ -11,18 +11,6 @@ import (
 )
 
 func login() (string, error) {
-	type LoginReq struct {
-		Email     string `json:"email"`
-		Password  string `json:"password"`
-		LongLived bool   `json:"long_lived"`
-	}
-
-	type LoginResp struct {
-		UserId       string `json:"user_id"`
-		AccessToken  string `json:"access_token"`
-		RefreshToken string `json:"refresh_token"`
-	}
-
 	payload := LoginReq{
 		Email:     "jahangir64r@gmail.com",
 		Password:  "Passw0rd",
@@ -43,19 +31,13 @@ func login() (string, error) {
 	return loginResp.AccessToken, nil
 }
 
-type CsvParsedData struct {
-	LocationName string  `csv:"Location name"`
-	Coordinates  string  `csv:"Coordinates"`
-	Radius       float64 `csv:"Radius (Meters)"`
-}
-
-func parseCsvToStruct(csvPath string) ([]CsvParsedData, error) {
+func parseCsvToStruct(csvPath string) ([]CsvData, error) {
 	csvFile, err := os.Open(csvPath)
 	if err != nil {
 		return nil, err
 	}
 
-	var csvParsedData []CsvParsedData
+	var csvParsedData []CsvData
 	if err := gocsv.UnmarshalFile(csvFile, &csvParsedData); err != nil {
 		return nil, err
 	}
@@ -63,13 +45,6 @@ func parseCsvToStruct(csvPath string) ([]CsvParsedData, error) {
 }
 
 func createPlace(accessToken string, placeName string, latitude float64, longitude float64, radius float64) error {
-	type CreatePlaceReq struct {
-		Name      string  `json:"name"`
-		Latitude  float64 `json:"latitude"`
-		Longitude float64 `json:"longitude"`
-		Radius    float64 `json:"radius"`
-	}
-
 	payload := CreatePlaceReq{
 		Name:      placeName,
 		Latitude:  latitude,
@@ -90,13 +65,36 @@ func createPlace(accessToken string, placeName string, latitude float64, longitu
 	return nil
 }
 
-func main() {
+func createMultiplePlaces(accessToken string, places []CsvData) error {
+	for _, place := range places {
+		latitude, err := strconv.ParseFloat(strings.Split(place.Coordinates, ", ")[0], 64)
+		if err != nil {
+			return err
+		}
+		longitude, err := strconv.ParseFloat(strings.Split(place.Coordinates, ", ")[1], 64)
+		if err != nil {
+			return err
+		}
+
+		err = createPlace(accessToken, place.LocationName, latitude, longitude, place.Radius)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func parseCsvPathFromCmd() (string, error) {
 	flag.Parse()
 	arguments := flag.Args()
 	if len(arguments) != 1 {
-		fmt.Println("Usage: go run main.go <csv_file_path>")
-		return
+		return "", fmt.Errorf("Usage: go run . <csv_file_path>")
 	}
+	return arguments[0], nil
+}
+
+func main() {
+	csvFilePath, err := parseCsvPathFromCmd()
 
 	accessToken, err := login()
 	if err != nil {
@@ -105,31 +103,16 @@ func main() {
 	}
 	fmt.Println("Logged in successfully")
 
-	csvFilePath := arguments[0]
 	fmt.Println("Processing file: ", csvFilePath)
-	csvParsed, err := parseCsvToStruct(csvFilePath)
+	csvData, err := parseCsvToStruct(csvFilePath)
 	if err != nil {
 		fmt.Println(err)
 		return
-
-	}
-	for _, place := range csvParsed {
-		latitude, err := strconv.ParseFloat(strings.Split(place.Coordinates, ", ")[0], 64)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		longitude, err := strconv.ParseFloat(strings.Split(place.Coordinates, ", ")[1], 64)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		err = createPlace(accessToken, place.LocationName, latitude, longitude, place.Radius)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
 	}
 
+	err = createMultiplePlaces(accessToken, csvData)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 }
